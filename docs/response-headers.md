@@ -40,10 +40,11 @@ Present on cache misses when at least one transform stage saved bytes.
 
 ## Metrics Endpoint
 
-The proxy serves a JSON metrics endpoint at `GET /metrics`:
+The proxy serves metrics at `GET /metrics`. Open it in a browser for an HTML dashboard, or use `curl` for JSON:
 
 ```
-curl http://localhost:8080/metrics
+curl http://localhost:8080/metrics        # JSON (API clients)
+curl http://localhost:8080/metrics?format=json  # force JSON
 ```
 
 ```json
