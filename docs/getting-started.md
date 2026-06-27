@@ -181,6 +181,7 @@ curl -sI -X POST http://localhost:8080/v1/chat/completions \
 ```
 
 - `X-Cache: hit` — served from exact-match SQLite cache
+- `X-Cache: tool` — served from tool-result cache
 - `X-Cache: semantic` — served from semantic (embedding) cache
 - `X-Cache: miss` — forwarded upstream
 
@@ -193,6 +194,9 @@ Agent request
     │
     ▼
 ┌─ Exact Cache ── hit ──► response (0 latency, 0 cost)
+│   miss
+    ▼
+┌─ Tool Cache ─── hit ──► response (deterministic tool pattern)
 │   miss
     ▼
 ┌─ Semantic Cache ── hit ──► response (embedding similarity)
@@ -231,7 +235,7 @@ See [Pipeline](pipeline.md) for full details.
 
 Every proxied response includes:
 
-- `X-Cache` — `hit`, `semantic`, or `miss`
+- `X-Cache` — `hit`, `tool`, `semantic`, or `miss`
 - `X-Route` — `simple` or `complex` (on miss)
 - `X-Original-Model` — what the agent originally requested
 - `X-Savings-Bytes` — total bytes removed by the pipeline

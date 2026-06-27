@@ -61,4 +61,4 @@ Configure your agent to use a custom OpenAI-compatible endpoint:
 
 **Pi / other agents:** Point their LLM provider URL to `http://localhost:8080/v1`.
 
-The proxy accepts the standard OpenAI chat completions JSON format and returns standard responses. The only difference: you get `X-Cache: hit|miss` and `X-Route: simple|complex` headers on every response.
+The proxy accepts the standard OpenAI chat completions JSON format and returns standard responses. The only difference: you get `X-Cache: hit|tool|semantic|miss` and `X-Route: simple|complex` headers on every response.
