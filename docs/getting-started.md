@@ -39,7 +39,7 @@ chmod +x ./proxy
 
 ## Configuration
 
-Create a `config.json` with your API key and model preferences:
+Create a `config.json` anywhere and pass it via `--config`:
 
 ```json
 {
@@ -53,16 +53,19 @@ Create a `config.json` with your API key and model preferences:
 
 All config fields are optional — see [Configuration](configuration.md) for every option.
 
-### Environment variables
+### Environment variables (no config file needed)
 
-Every JSON key maps to a `PROXY_` environment variable. Env vars take precedence over the config file:
+The proxy runs entirely from env vars — no config file required:
 
 ```bash
 export PROXY_API_KEY="sk-proj-..."
 export PROXY_EXPENSIVE_MODEL="gpt-4o"
 export PROXY_CHEAP_MODEL="gpt-4o-mini"
 export PROXY_LISTEN_ADDR=":9090"
+./bin/proxy   # no --config flag
 ```
+
+Every JSON key maps to a `PROXY_` environment variable. Env vars take precedence over the config file when both are present.
 
 If `PROXY_API_KEY` is not set, the proxy falls back to `OPENAI_API_KEY`.
 

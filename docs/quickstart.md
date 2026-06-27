@@ -17,7 +17,7 @@ The binary is self-contained — no runtime dependencies.
 
 ## Configure
 
-Create a `config.json`:
+Create a `config.json` anywhere and pass it via `--config`. Or skip the file and use env vars only (both shown below):
 
 ```json
 {
@@ -29,12 +29,13 @@ Create a `config.json`:
 }
 ```
 
-Or use environment variables:
+Or skip the file entirely — env vars only:
 
 ```bash
 export PROXY_API_KEY="sk-..."
 export PROXY_EXPENSIVE_MODEL="gpt-4o"
 export PROXY_CHEAP_MODEL="gpt-4o-mini"
+./bin/proxy   # no --config needed
 ```
 
 ## Run
