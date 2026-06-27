@@ -45,7 +45,7 @@ internal/
 2. Calls `cache.RequestKey` + `exactCache.Get` for the fast path
 3. On exact miss, tries `cache.ToolRequestKey` + `toolCache.Get` for tool pattern match
 4. On tool miss, tries `semCache.Lookup` for semantic similarity
-5. On semantic miss, calls `router.Decide` for model routing
+5. On semantic miss, calls `router.Decide` for model routing; `resolveUpstream` picks the provider URL + API key per the selected model
 6. Runs transforms in order: `dedup`, `ctxMgr.Trim`, `compressor.Compress`, `budget.Apply`
 7. Measures per-stage byte savings via JSON serialization at each step
 8. Builds a new `httputil.ReverseProxy` to forward the patched request

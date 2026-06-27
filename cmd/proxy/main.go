@@ -25,8 +25,8 @@ func main() {
 		log.Fatalf("loading config: %v", err)
 	}
 
-	if cfg.APIKey == "" {
-		log.Fatal("API key required: set PROXY_API_KEY env, OPENAI_API_KEY env, or api_key in config")
+	if cfg.APIKey == "" && len(cfg.Upstreams) == 0 {
+		log.Fatal("API key required: set PROXY_API_KEY env, OPENAI_API_KEY env, api_key in config, or per-model api_key in upstreams")
 	}
 
 	exactCache, err := cache.NewExactCache(cfg.CachePath, cfg.CacheTTL)
@@ -59,7 +59,15 @@ func main() {
 	log.Printf("starting proxy on %s", cfg.ListenAddr)
 	log.Printf("  expensive: %s", cfg.ExpensiveModel)
 	log.Printf("  cheap:     %s", cfg.CheapModel)
-	log.Printf("  upstream:  %s", cfg.UpstreamURL)
+	if len(cfg.Upstreams) > 0 {
+		log.Printf("  upstreams:")
+		for model, uc := range cfg.Upstreams {
+			log.Printf("    %s: %s", model, uc.URL)
+		}
+	}
+	if len(cfg.Upstreams) == 0 {
+		log.Printf("  upstream:  %s", cfg.UpstreamURL)
+	}
 	log.Printf("  cache:     %s (ttl=%ds)", cfg.CachePath, cfg.CacheTTL)
 
 	sigCh := make(chan os.Signal, 1)

@@ -19,6 +19,11 @@ import (
 	"github.com/ecarlisle/cache-cow/internal/types"
 )
 
+type resolvedUpstream struct {
+	url    *url.URL
+	apiKey string
+}
+
 type Proxy struct {
 	cfg        *config.Config
 	exactCache *cache.ExactCache
@@ -30,11 +35,23 @@ type Proxy struct {
 	deduper    *transform.SystemPromptDeduper
 	budget     *transform.TokenBudget
 	collector  *metrics.Collector
-	upstream   *url.URL
+	upstreams  map[string]*resolvedUpstream
 }
 
 func New(cfg *config.Config, exactCache *cache.ExactCache, semCache *cache.SemanticCache, toolCache *cache.ToolCache) *Proxy {
-	upstream, _ := url.Parse(cfg.UpstreamURL)
+	upstreams := make(map[string]*resolvedUpstream)
+	for model, uc := range cfg.Upstreams {
+		u, err := url.Parse(uc.URL)
+		if err != nil {
+			log.Printf("  skipping upstream %q: %v", model, err)
+			continue
+		}
+		upstreams[model] = &resolvedUpstream{url: u, apiKey: uc.APIKey}
+	}
+	if _, ok := upstreams["*"]; !ok {
+		u, _ := url.Parse(cfg.UpstreamURL)
+		upstreams["*"] = &resolvedUpstream{url: u, apiKey: cfg.APIKey}
+	}
 
 	return &Proxy{
 		cfg:        cfg,
@@ -51,8 +68,15 @@ func New(cfg *config.Config, exactCache *cache.ExactCache, semCache *cache.Seman
 		deduper:    transform.NewSystemPromptDeduper(100, cfg.SystemPromptDedup),
 		budget:     transform.NewTokenBudget(cfg.TokenBudgetCheap, cfg.TokenBudgetExpensive, cfg.TokenBudgetEnabled),
 		collector:  metrics.NewCollector(),
-		upstream:   upstream,
+		upstreams:  upstreams,
 	}
+}
+
+func (p *Proxy) resolveUpstream(model string) *resolvedUpstream {
+	if u, ok := p.upstreams[model]; ok {
+		return u
+	}
+	return p.upstreams["*"]
 }
 
 func (p *Proxy) Collector() *metrics.Collector {
@@ -60,9 +84,21 @@ func (p *Proxy) Collector() *metrics.Collector {
 }
 
 func (p *Proxy) Handler() http.Handler {
+	fallback := p.upstreams["*"]
 	rp := &httputil.ReverseProxy{
-		Director:       p.director,
-		ModifyResponse: p.modifyResponse,
+		Director: func(r *http.Request) {
+			if fallback != nil {
+				r.URL.Scheme = fallback.url.Scheme
+				r.URL.Host = fallback.url.Host
+				r.URL.Path = fallback.url.Path + r.URL.Path
+				r.Host = fallback.url.Host
+				if fallback.apiKey != "" {
+					r.Header.Set("Authorization", "Bearer "+fallback.apiKey)
+				}
+			}
+			r.Header.Set("Accept", "application/json")
+		},
+		ModifyResponse: func(res *http.Response) error { return nil },
 		ErrorHandler:   p.errorHandler,
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -186,8 +222,19 @@ func (p *Proxy) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	upstreamStart := time.Now()
 
+	targetUpstream := p.resolveUpstream(targetModel)
+
 	rp := httputil.ReverseProxy{
-		Director: p.director,
+		Director: func(r *http.Request) {
+			r.URL.Scheme = targetUpstream.url.Scheme
+			r.URL.Host = targetUpstream.url.Host
+			r.URL.Path = targetUpstream.url.Path + r.URL.Path
+			r.Host = targetUpstream.url.Host
+			if targetUpstream.apiKey != "" {
+				r.Header.Set("Authorization", "Bearer "+targetUpstream.apiKey)
+			}
+			r.Header.Set("Accept", "application/json")
+		},
 		ModifyResponse: func(res *http.Response) error {
 			if err := p.cacheResponse(res, &req, m.RequestKey); err != nil {
 				log.Printf("  cache write error: %v", err)
@@ -240,22 +287,6 @@ func systemPromptBytes(req *types.ChatRequest) int {
 		}
 	}
 	return 0
-}
-
-func (p *Proxy) director(r *http.Request) {
-	r.URL.Scheme = p.upstream.Scheme
-	r.URL.Host = p.upstream.Host
-	r.URL.Path = p.upstream.Path + r.URL.Path
-	r.Host = p.upstream.Host
-
-	if p.cfg.APIKey != "" {
-		r.Header.Set("Authorization", "Bearer "+p.cfg.APIKey)
-	}
-	r.Header.Set("Accept", "application/json")
-}
-
-func (p *Proxy) modifyResponse(res *http.Response) error {
-	return nil
 }
 
 func (p *Proxy) errorHandler(w http.ResponseWriter, r *http.Request, err error) {

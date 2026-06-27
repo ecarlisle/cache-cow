@@ -7,8 +7,9 @@ Configuration is loaded from a JSON file (optional, `--config` flag) and overlai
 | JSON key | Environment variable | Default | Description |
 |----------|--------------------|---------|-------------|
 | `listen_addr` | `PROXY_LISTEN_ADDR` | `:8080` | TCP address to listen on |
-| `upstream_url` | `PROXY_UPSTREAM_URL` | `https://api.openai.com/v1` | Base URL of the LLM provider API |
-| `api_key` | `PROXY_API_KEY` | `$OPENAI_API_KEY` | API key for the upstream provider |
+| `upstream_url` | `PROXY_UPSTREAM_URL` | `https://api.openai.com/v1` | Base URL of the LLM provider API (fallback) |
+| `api_key` | `PROXY_API_KEY` | `$OPENAI_API_KEY` | API key for the upstream provider (fallback) |
+| `upstreams` | — | — | Per-model upstream mappings (see below) |
 | `expensive_model` | `PROXY_EXPENSIVE_MODEL` | `gpt-4o` | Model name used for complex routes |
 | `cheap_model` | `PROXY_CHEAP_MODEL` | `gpt-4o-mini` | Model name used for simple routes |
 | `cache_path` | `PROXY_CACHE_PATH` | `proxy-cache.db` | Filesystem path for the SQLite cache database |
@@ -37,7 +38,53 @@ Configuration is loaded from a JSON file (optional, `--config` flag) and overlai
 | `token_budget_cheap` | `1024` | Max tokens ceiling for cheap-route requests |
 | `token_budget_expensive` | `4096` | Max tokens ceiling for expensive-route requests |
 
-## Example Config
+## Per-Model Upstreams
+
+Use `upstreams` to route different models to different providers. The key is the model name (as set by the router in `expensive_model`/`cheap_model`), or `"*"` for a catch-all fallback.
+
+| `upstreams` entry field | Required | Description |
+|-------------------------|----------|-------------|
+| `url` | yes | Base URL of the LLM provider API (OpenAI, OpenRouter, together.ai, etc.) |
+| `api_key` | no | API key for this provider. Falls back to the global `api_key` |
+
+### Resolution order
+
+1. Exact model match in `upstreams`
+2. `"*"` wildcard entry in `upstreams`
+3. Global `upstream_url` / `api_key` (auto-registered as `"*"`)
+
+### Resolver compatibility
+
+All providers must expose an OpenAI-compatible `/v1/chat/completions` endpoint:
+
+| Provider | Example URL |
+|----------|-------------|
+| OpenAI | `https://api.openai.com/v1` |
+| OpenRouter | `https://openrouter.ai/api/v1` |
+| OpenCode Zen | `https://zen.opencode.ai/v1` |
+| Together | `https://api.together.xyz/v1` |
+| Groq | `https://api.groq.com/openai/v1` |
+| Anthropic (via proxy) | `https://api.anthropic.com/v1` (OpenAI-compatible wrapper) |
+
+### Example — Multi-Provider
+
+```json
+{
+  "listen_addr": ":9090",
+  "upstreams": {
+    "gpt-4o":        { "url": "https://api.openai.com/v1", "api_key": "sk-openai-..." },
+    "claude-sonnet": { "url": "https://api.anthropic.com/v1", "api_key": "sk-ant-..." },
+    "deepseek-v3":   { "url": "https://openrouter.ai/api/v1", "api_key": "sk-or-..." },
+    "*":             { "url": "https://zen.opencode.ai/v1", "api_key": "sk-zen-..." }
+  },
+  "expensive_model": "gpt-4o",
+  "cheap_model": "deepseek-v3",
+  "cache_path": "/var/data/proxy-cache.db",
+  "cache_ttl_seconds": 7200
+}
+```
+
+### Backward-Compatible Example
 
 ```json
 {

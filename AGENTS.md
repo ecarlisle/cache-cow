@@ -49,5 +49,13 @@ go vet ./...                          # must pass before commit
 | New config field | Add field + JSON tag to `Config` struct, set default in `Default()`, add `PROXY_` env var in `Load()`, update `docs/configuration.md` |
 | New routing heuristic | Add toggle to `RouterConfig`, implement in `Decide()`, wire in `handler.go:44` (New constructor), add table-driven tests, update `docs/routing.md` |
 | New cache layer | Implement `Get/Set` contract from `ExactCache`, wire into `handleChat()` before/after existing caches, add test (hit/miss/expiry), update `docs/cache.md` |
+| New upstream provider | Add entry to `Upstreams` map in config JSON (model name → `{url, api_key}`). The `resolveUpstream(model)` method handles lookup + wildcard fallback. Model names are the `expensive_model`/`cheap_model` values after routing. Update `docs/configuration.md` provider table. |
+
+## Upstream resolution
+
+`resolveUpstream(model)` in `handler.go:75` selects the provider URL + API key:
+1. Exact match from `Upstreams` map
+2. `"*"` wildcard entry
+3. Global `upstream_url` / `api_key` (auto-registered as `"*"` for backward compat)
 
 Commit after every prompt. Include code changes, tests, and doc updates in the same commit.

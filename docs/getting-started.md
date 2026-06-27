@@ -97,6 +97,16 @@ starting proxy on :8080
   cheap:     gpt-4o-mini
   upstream:  https://api.openai.com/v1
   cache:     proxy-cache.db (ttl=3600s)
+
+With per-model upstreams, the log shows each mapping:
+
+starting proxy on :8080
+  expensive: gpt-4o
+  cheap:     deepseek-v3
+  upstreams:
+    gpt-4o: https://api.openai.com/v1
+    deepseek-v3: https://openrouter.ai/api/v1
+  cache:     proxy-cache.db (ttl=7200s)
 ```
 
 ## Point an Agent at the Proxy

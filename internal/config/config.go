@@ -7,10 +7,16 @@ import (
 	"strconv"
 )
 
+type UpstreamConfig struct {
+	URL    string `json:"url"`
+	APIKey string `json:"api_key,omitempty"`
+}
+
 type Config struct {
 	ListenAddr  string `json:"listen_addr"`
 	UpstreamURL string `json:"upstream_url"`
 	APIKey      string `json:"api_key"`
+	Upstreams   map[string]UpstreamConfig `json:"upstreams,omitempty"`
 
 	ExpensiveModel string `json:"expensive_model"`
 	CheapModel     string `json:"cheap_model"`
